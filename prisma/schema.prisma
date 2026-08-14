@@ -1,34 +1,182 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
+// ======================================================
+// Shopify App Session
+// ======================================================
+
 model Session {
-  id            String    @id
-  shop          String
-  state         String
-  isOnline      Boolean   @default(false)
-  scope         String?
-  expires       DateTime?
-  accessToken   String
-  userId        BigInt?
-  firstName     String?
-  lastName      String?
-  email         String?
-  accountOwner  Boolean   @default(false)
-  locale        String?
-  collaborator  Boolean?  @default(false)
-  emailVerified Boolean?  @default(false)
-  refreshToken        String?
-  refreshTokenExpires DateTime?
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline             Boolean   @default(false)
+  scope               String?
+  expires              DateTime?
+  accessToken          String
+  userId               BigInt?
+  firstName            String?
+  lastName             String?
+  email                String?
+  accountOwner         Boolean   @default(false)
+  locale               String?
+  collaborator         Boolean?  @default(false)
+  emailVerified        Boolean?  @default(false)
+  refreshToken         String?
+  refreshTokenExpires  DateTime?
+}
+
+// ======================================================
+// Merchant
+// ======================================================
+
+model Merchant {
+  id           Int          @id @default(autoincrement())
+  shopDomain   String       @unique @db.VarChar(255)
+  accessToken  String       @db.Text
+  plan         String?      @db.VarChar(50)
+  installedAt DateTime     @default(now())
+
+  settings     Setting[]
+  digitalFiles DigitalFile[]
+  licenses     License[]
+
+  @@map("merchants")
+}
+
+// ======================================================
+// Settings
+// ======================================================
+
+model Setting {
+  id         Int      @id @default(autoincrement())
+  merchantId Int
+  key        String   @db.VarChar(100)
+  value      Json?
+
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, key])
+  @@index([merchantId])
+  @@map("settings")
+}
+
+// ======================================================
+// Digital Files
+// ======================================================
+
+model DigitalFile {
+  id              Int       @id @default(autoincrement())
+  merchantId      Int
+  shopifyFileId   String    @unique @db.VarChar(255)
+  shopifyFileUrl  String?   @db.Text
+  title           String    @db.VarChar(255)
+  generateLicense Boolean   @default(false)
+  maxDownloads    Int       @default(5)
+  expireDays      Int?
+  createdAt       DateTime  @default(now())
+
+  merchant             Merchant              @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  productFiles         ProductFile[]
+  downloadPermissions  DownloadPermission[]
+  licenses             License[]
+
+  @@index([merchantId])
+  @@map("digital_files")
+}
+
+// ======================================================
+// Product Files
+// ======================================================
+
+model ProductFile {
+  id            Int    @id @default(autoincrement())
+  productId     String @db.VarChar(255)
+  variantId     String? @db.VarChar(255)
+  digitalFileId Int
+
+  digitalFile   DigitalFile @relation(fields: [digitalFileId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, variantId, digitalFileId])
+  @@index([digitalFileId])
+  @@map("product_files")
+}
+
+// ======================================================
+// Download Permissions
+// ======================================================
+
+model DownloadPermission {
+  id             Int       @id @default(autoincrement())
+  digitalFileId  Int
+  orderId        String    @db.VarChar(255)
+  lineItemId     String    @db.VarChar(255)
+  customerEmail  String?   @db.VarChar(255)
+  downloadToken  String    @unique @db.Uuid
+  expireAt       DateTime?
+  maxDownloads   Int
+  downloadCount  Int       @default(0)
+  createdAt      DateTime  @default(now())
+
+  digitalFile    DigitalFile    @relation(fields: [digitalFileId], references: [id], onDelete: Cascade)
+  downloadLogs  DownloadLog[]
+
+  @@unique([orderId, lineItemId, digitalFileId])
+  @@index([orderId])
+  @@index([digitalFileId])
+  @@map("download_permissions")
+}
+
+// ======================================================
+// Download Logs
+// ======================================================
+
+model DownloadLog {
+  id                   Int      @id @default(autoincrement())
+  downloadPermissionId Int
+  downloadedAt         DateTime @default(now())
+  ipAddress            String?  @db.VarChar(45)
+  userAgent            String?  @db.Text
+
+  downloadPermission   DownloadPermission @relation(fields: [downloadPermissionId], references: [id], onDelete: Cascade)
+
+  @@index([downloadPermissionId])
+  @@index([downloadedAt])
+  @@map("download_logs")
+}
+
+// ======================================================
+// Licenses
+// ======================================================
+
+model License {
+  id              Int       @id @default(autoincrement())
+  merchantId      Int
+  digitalFileId   Int?
+  shopDomain      String?   @db.VarChar(255)
+  orderId         String    @db.VarChar(255)
+  orderName       String?   @db.VarChar(255)
+  lineItemId      String    @db.VarChar(255)
+  productId       String?   @db.VarChar(255)
+  variantId       String?   @db.VarChar(255)
+  customerId      String?   @db.VarChar(255)
+  customerEmail   String?   @db.VarChar(255)
+  licenseKey      String    @unique @db.VarChar(255)
+  issuedAt        DateTime  @default(now())
+  received        Boolean   @default(false)
+  revokedAt       DateTime?
+  revokedReason   String?   @db.Text
+
+  merchant        Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  digitalFile     DigitalFile? @relation(fields: [digitalFileId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, lineItemId])
+  @@index([merchantId])
+  @@index([digitalFileId])
+  @@map("licenses")
 }
