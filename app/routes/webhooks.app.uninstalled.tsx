@@ -13,5 +13,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await db.session.deleteMany({ where: { shop } });
   }
 
+  await db.merchant.updateMany({
+    where: {
+      shopDomain: shop,
+    },
+    data: {
+      isInstalled: false,
+    },
+  });
+
   return new Response();
 };

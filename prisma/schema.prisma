@@ -41,6 +41,7 @@ model Merchant {
   accessToken  String       @db.Text
   plan         String?      @db.VarChar(50)
   installedAt DateTime     @default(now())
+  isInstalled  Boolean  @default(true)
 
   settings     Setting[]
   digitalFiles DigitalFile[]

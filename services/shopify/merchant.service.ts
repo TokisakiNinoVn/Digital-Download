@@ -17,10 +17,12 @@ export async function syncMerchant({
     },
     update: {
       accessToken,
+      isInstalled: true,
     },
     create: {
       shopDomain,
       accessToken,
+      isInstalled: true,
     },
   });
 
