@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "f66c50c9a8f478cc51319c5c0263e16e"
-name = "digital-download"
+name = "Digital Download"
 application_url = "https://example.com"
 embedded = true
 
